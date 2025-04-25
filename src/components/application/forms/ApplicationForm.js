@@ -1363,7 +1363,7 @@ export default function ApplicationForm({ model, onSubmit }) {
       },
       Tmax: {
         label: "Temperatura máxima mensual (°C)",
-        type: "multi-text",
+        type: "monthly",
         fields: [
           "janmax",
           "febmax",
@@ -1381,7 +1381,7 @@ export default function ApplicationForm({ model, onSubmit }) {
       },
       Tmin: {
         label: "Temperatura mínima mensual (°C)",
-        type: "multi-text",
+        type: "monthly",
         fields: [
           "janmin",
           "febmin",
@@ -1397,9 +1397,9 @@ export default function ApplicationForm({ model, onSubmit }) {
           "decmin",
         ],
       },
-      Pmean: {
+      Prec: {
         label: "Precipitación total mensual (mm)",
-        type: "multi-text",
+        type: "monthly",
         fields: [
           "janmean",
           "febmean",
@@ -1808,8 +1808,42 @@ export default function ApplicationForm({ model, onSubmit }) {
   // Enviar datos procesados
   const handleSubmit = (e) => {
     e.preventDefault();
-    const result = evaluateModel(model, formData);
-    onSubmit({ model, resultado: result });
+
+    // Preprocess formData to group monthly data into arrays
+    const processedData = { ...formData };
+    const monthlyKeys = new Set();
+
+    // Identify base keys for monthly data (e.g., Tmax, Tmin, Prec)
+    Object.keys(modelFields[model] || {}).forEach(key => {
+      if (modelFields[model][key].type === 'monthly') {
+        monthlyKeys.add(key);
+        processedData[key] = []; // Initialize as empty array
+      }
+    });
+
+    // Populate arrays with monthly values
+    monthlyKeys.forEach(baseKey => {
+      for (let i = 0; i < 12; i++) {
+        const monthKey = `${baseKey}-${i}`;
+        if (formData[monthKey] !== undefined) {
+          // Convert to number, default to 0 or handle error if needed
+          processedData[baseKey].push(parseFloat(formData[monthKey]) || 0);
+          delete processedData[monthKey]; // Remove the individual month key
+        } else {
+           processedData[baseKey].push(0); // Add default value if missing
+        }
+      }
+    });
+
+
+    try {
+      const result = evaluateModel(model, processedData); // Use processedData
+      onSubmit({ model, resultado: result });
+    } catch (error) {
+      console.error("Error evaluating model:", error);
+      // Optionally, display an error message to the user
+      // Example: setErrorState(error.message);
+    }
   };
 
 
